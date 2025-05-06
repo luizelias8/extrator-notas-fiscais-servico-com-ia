@@ -50,7 +50,8 @@ def extrair_informacoes_nfse(imagem_base64):
     - Extraia a data no formato DD/MM/AAAA
     - Extraia o valor total como um número decimal (com ponto ou vírgula como separador)
     - Para a discriminação do serviço, busque seções com títulos como "DISCRIMINAÇÃO DOS SERVIÇOS", "DESCRIÇÃO DO SERVIÇO", "DISCRIMINAÇÃO DO SERVIÇO" ou equivalentes
-    - Capture a descrição completa do serviço, que pode incluir tipo de serviço, códigos, período de prestação, etc.
+    - IMPORTANTE: Se houver um código de serviço antes da descrição (como "01.01.01 - Análise e desenvolvimento de sistemas"), inclua-o na discriminação do serviço exatamente como aparece na nota
+    - Capture a descrição completa do serviço, incluindo o código quando disponível, no formato "CÓDIGO - DESCRIÇÃO" (exemplo: "01.01.01 - Análise e desenvolvimento de sistemas")
     - Se algum campo não estiver presente ou legível na imagem, defina seu valor como null
     - Se houver mais de um valor para o mesmo campo, escolha o mais completo e legível
 
@@ -63,7 +64,7 @@ def extrair_informacoes_nfse(imagem_base64):
         "numero_nota": "000000000",
         "data_emissao": "DD/MM/AAAA",
         "valor_total": "0.00",
-        "discriminacao_servico": "Descrição do serviço prestado"
+        "discriminacao_servico": "Código - Descrição do serviço prestado"
     }
 
     Responda APENAS com o JSON, sem texto adicional.
