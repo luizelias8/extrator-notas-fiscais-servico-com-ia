@@ -44,15 +44,21 @@ def extrair_informacoes_nfse(imagem_base64):
     6. Data de emissão
     7. Valor total do serviço
     8. Discriminação do serviço prestado (descrição do serviço)
+    9. Valores de impostos (IR, PIS, COFINS, CSLL, INSS e ISS)
+    10. Valor aproximado dos tributos
 
     IMPORTANTE:
     - Extraia os números de CNPJ com todos os caracteres, incluindo pontos, barras e hífens (formato: 00.000.000/0000-00)
     - Extraia a data no formato DD/MM/AAAA
-    - Extraia o valor total como um número decimal (com ponto ou vírgula como separador)
+    - Extraia o valor total, valores de impostos e valor aproximado dos tributos como números decimais (com ponto como separador decimal)
     - Para a discriminação do serviço, busque seções com títulos como "DISCRIMINAÇÃO DOS SERVIÇOS", "DESCRIÇÃO DO SERVIÇO", "DISCRIMINAÇÃO DO SERVIÇO" ou equivalentes
     - IMPORTANTE: Se houver um código de serviço antes da descrição (como "01.01.01 - Análise e desenvolvimento de sistemas"), inclua-o na discriminação do serviço exatamente como aparece na nota
     - Capture a descrição completa do serviço, incluindo o código quando disponível, no formato "CÓDIGO - DESCRIÇÃO" (exemplo: "01.01.01 - Análise e desenvolvimento de sistemas")
-    - Se algum campo não estiver presente ou legível na imagem, defina seu valor como null
+    - Busque valores de impostos em seções como "RETENÇÕES FEDERAIS", "IMPOSTOS RETIDOS", "VALORES DE IMPOSTOS" ou similares
+    - Para o valor aproximado dos tributos, busque campos como "VALOR APROXIMADO DOS TRIBUTOS", "VALOR APROXIMADO TRIBUTOS", "IBPT" ou similares (exemplo: "R$ 1.880,00 (17,65%) / IBPT")
+    - Extraia apenas o valor numérico do "Valor aproximado dos tributos", ignorando percentuais e textos adicionais
+    - Se os valores de impostos (IR, PIS, COFINS, CSLL, INSS, ISS) ou o valor aproximado dos tributos não estiverem presentes ou legíveis na imagem, defina-os como "0.00"
+    - Se algum outro campo não estiver presente ou legível na imagem, defina seu valor como null
     - Se houver mais de um valor para o mesmo campo, escolha o mais completo e legível
 
     Retorne apenas um objeto JSON com o seguinte formato:
@@ -64,7 +70,14 @@ def extrair_informacoes_nfse(imagem_base64):
         "numero_nota": "000000000",
         "data_emissao": "DD/MM/AAAA",
         "valor_total": "0.00",
-        "discriminacao_servico": "Código - Descrição do serviço prestado"
+        "discriminacao_servico": "Código - Descrição do serviço prestado",
+        "ir": "0.00",
+        "pis": "0.00",
+        "cofins": "0.00",
+        "csll": "0.00",
+        "inss": "0.00",
+        "iss": "0.00",
+        "valor_aproximado_tributos": "0.00"
     }
 
     Responda APENAS com o JSON, sem texto adicional.
@@ -265,6 +278,10 @@ def main():
                     # Cria uma cópia do valor para exibição no DataFrame
                     df_exibicao = df_resultados.copy()
                     df_exibicao['valor_total'] = df_exibicao['valor_total'].apply(formatar_valor_br)
+                    # Formatar campos de impostos
+                    for campo in ['pis', 'cofins', 'ir', 'csll', 'inss', 'iss', 'valor_aproximado_tributos']:
+                        if campo in df_exibicao.columns:
+                            df_exibicao[campo] = df_exibicao[campo].apply(formatar_valor_br)
 
                     st.subheader('Resultados Extraídos')
                     st.dataframe(df_exibicao)
@@ -277,6 +294,10 @@ def main():
                 df_csv = df_resultados.copy()
                 if 'valor_total' in df_csv.columns:
                     df_csv['valor_total'] = df_csv['valor_total'].apply(formatar_valor_br)
+                    # Formatar campos de impostos
+                    for campo in ['pis', 'cofins', 'ir', 'csll', 'inss', 'iss', 'valor_aproximado_tributos']:
+                        if campo in df_csv.columns:
+                            df_csv[campo] = df_csv[campo].apply(formatar_valor_br)
 
                 # Botão para download do CSV
                 csv = df_csv.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
