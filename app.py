@@ -123,46 +123,57 @@ def extrair_informacoes_nfse(imagem_base64):
         st.error(f'Erro ao processar imagem: {str(erro)}')
         return None
 
-# Função para converter PDF para imagem
-def converter_pdf_para_imagem(caminho_pdf, pasta_imagens):
-    """Converte a primeira página de um PDF em imagem."""
+# Função para converter todas as páginas de um PDF para imagens
+def converter_pdf_para_imagens(caminho_pdf, pasta_imagens):
+    """Converte todas as páginas de um PDF em imagens separadas e retorna a lista de caminhos."""
     try:
         # Verificar se a pasta de imagens existe, se não, criar
         if not os.path.exists(pasta_imagens):
             os.makedirs(pasta_imagens)
 
-        # Gerar nome do arquivo baseado no nome do PDF original
+        # Gerar nome base do arquivo baseado no nome do PDF original
         nome_base = os.path.splitext(os.path.basename(caminho_pdf))[0]
-        caminho_img = os.path.join(pasta_imagens, f'{nome_base}.jpg')
+        caminhos_imagens = []
 
         # Abrir o PDF com PyMuPDF
         doc = fitz.open(caminho_pdf)
 
         # Verificar se o documento tem páginas
         if doc.page_count == 0:
-            return None
+            return []
 
-        # Carregar a primeira página
-        pagina = doc.load_page(0)  # índice 0 = primeira página
+        # Processar cada página do PDF
+        for num_pagina in range(doc.page_count):
+            # Gerar nome único para cada página
+            caminho_img = os.path.join(pasta_imagens, f'{nome_base}_pagina_{num_pagina+1}.jpg')
 
-        # Definir matriz de transformação para aumentar a resolução (300 DPI)
-        matriz = fitz.Matrix(3, 3)
+            # Carregar a página
+            pagina = doc.load_page(num_pagina)
 
-        # Renderizar a página para um objeto pixmap (sem canal alpha para reduzir tamanho)
-        pix = pagina.get_pixmap(matrix=matriz, alpha=False)
+            # Definir matriz de transformação para aumentar a resolução (300 DPI)
+            matriz = fitz.Matrix(3, 3)
 
-        # Salvar a imagem como JPEG
-        pix.save(caminho_img, 'jpeg')
+            # Renderizar a página para um objeto pixmap (sem canal alpha para reduzir tamanho)
+            pix = pagina.get_pixmap(matrix=matriz, alpha=False)
+
+            # Salvar a imagem como JPEG
+            pix.save(caminho_img, 'jpeg')
+
+            # Adicionar caminho da imagem à lista
+            caminhos_imagens.append(caminho_img)
 
         # Fechar o documento para liberar recursos
         doc.close()
 
-        return caminho_img
+        return caminhos_imagens
     except Exception as erro:
-        return None
+        st.error(f'Erro ao converter PDF para imagens: {str(erro)}')
+        return []
 
 def processar_arquivo(arquivo, pasta_temp, pasta_imagens):
     """Processa um único arquivo (PDF ou imagem) e retorna os dados extraídos."""
+    resultados = []
+
     try:
         # Salvar o arquivo temporariamente
         caminho_arquivo = os.path.join(pasta_temp, arquivo.name)
@@ -171,29 +182,57 @@ def processar_arquivo(arquivo, pasta_temp, pasta_imagens):
 
         # Verificar se é um PDF ou uma imagem
         if arquivo.name.lower().endswith('.pdf'):
-            # Converter PDF para imagem
-            caminho_img = converter_pdf_para_imagem(caminho_arquivo, pasta_imagens)
-            if not caminho_img:
-                return None
+            # Converter todas as páginas do PDF para imagens
+            caminhos_imagens = converter_pdf_para_imagens(caminho_arquivo, pasta_imagens)
 
-            # Codificar imagem em base64
-            imagem_base64 = codificar_imagem(caminho_img)
+            if not caminhos_imagens:
+                st.warning(f'Não foi possível extrair imagens do PDF: {arquivo.name}')
+                return []
+
+            # Status para páginas individuais
+            status_paginas = st.empty()
+
+            # Processar cada página do PDF
+            for i, caminho_img in enumerate(caminhos_imagens):
+                status_paginas.text(f'Processando página {i+1}/{len(caminhos_imagens)} do arquivo {arquivo.name}')
+
+                # Codificar imagem em base64
+                imagem_base64 = codificar_imagem(caminho_img)
+
+                if not imagem_base64:
+                    continue
+
+                # Extrair informações
+                dados = extrair_informacoes_nfse(imagem_base64)
+                if dados:
+                    # Adicionar informações sobre o arquivo e página
+                    dados['nome_arquivo'] = arquivo.name
+                    dados['pagina'] = i+1
+                    resultados.append(dados)
+                else:
+                    st.warning(f'Não foi possível extrair informações da página {i+1} do arquivo {arquivo.name}')
+
+            # Limpar status de páginas
+            status_paginas.empty()
+
         else: # Arquivo de imagem
             # Codificar imagem em base64 diretamente
             imagem_base64 = codificar_imagem(caminho_arquivo)
 
-        if not imagem_base64:
-            return None
+            if not imagem_base64:
+                return []
 
-        # Extrair informações
-        dados = extrair_informacoes_nfse(imagem_base64)
-        if dados:
-            dados['nome_arquivo'] = arquivo.name
-            return dados
-        else:
-            return None
+            # Extrair informações
+            dados = extrair_informacoes_nfse(imagem_base64)
+            if dados:
+                dados['nome_arquivo'] = arquivo.name
+                dados['pagina'] = 1
+                resultados.append(dados)
+
+        return resultados
     except Exception as erro:
-        return None
+        st.error(f'Erro ao processar arquivo {arquivo.name}: {str(erro)}')
+        return []
 
 # Função para gerar link de download
 def get_download_link(df, nome_arquivo, texto):
@@ -243,7 +282,7 @@ def main():
         )
 
         # Inicializar variáveis
-        resultados = []
+        todos_resultados = []
         df_resultados = None
 
         # Botão para processar os arquivos
@@ -254,24 +293,30 @@ def main():
 
             # Processar cada arquivo
             total_arquivos = len(arquivos)
+            total_processados = 0
+            total_notas = 0
+
             for i, arquivo in enumerate(arquivos):
                 texto_status.text(f'Processando {i+1}/{total_arquivos}: {arquivo.name}')
                 progresso.progress((i) / total_arquivos)
 
-                resultado = processar_arquivo(arquivo, temp_dir, pasta_imagens)
-                if resultado:
-                    resultados.append(resultado)
-                    st.success(f'✅ {arquivo.name} processado com sucesso')
+                resultados_arquivo = processar_arquivo(arquivo, temp_dir, pasta_imagens)
+
+                if resultados_arquivo:
+                    todos_resultados.extend(resultados_arquivo)
+                    total_notas += len(resultados_arquivo)
+                    total_processados += 1
+                    st.success(f'✅ {arquivo.name}: {len(resultados_arquivo)} notas fiscais extraídas com sucesso')
                 else:
                     st.error(f'❌ Falha ao processar {arquivo.name}')
 
             # Atualizar progresso final
             progresso.progress(1.0)
-            texto_status.text(f'Processamento concluído. {len(resultados)} de {total_arquivos} arquivos processados com sucesso.')
+            texto_status.text(f'Processamento concluído. {total_processados} de {total_arquivos} arquivos processados com sucesso, totalizando {total_notas} notas fiscais extraídas.')
 
             # Criar DataFrame e exibir resultados se houver
-            if resultados:
-                df_resultados = pd.DataFrame(resultados)
+            if todos_resultados:
+                df_resultados = pd.DataFrame(todos_resultados)
 
                 # Antes de exibir, formatar valores monetários no padrão brasileiro
                 if 'valor_total' in df_resultados.columns:
@@ -310,7 +355,7 @@ def main():
                 )
 
                 # Botão para download do JSON
-                json_str = json.dumps(resultados, ensure_ascii=False, indent=4)
+                json_str = json.dumps(todos_resultados, ensure_ascii=False, indent=4)
                 st.download_button(
                     label='Baixar Resultados (JSON)',
                     data=json_str.encode('utf-8'),
