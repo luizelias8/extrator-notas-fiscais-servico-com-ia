@@ -2,19 +2,6 @@
 
 Uma aplicação web desenvolvida com Streamlit para extrair automaticamente informações de Notas Fiscais de Serviço Eletrônicas (NFS-e) a partir de arquivos PDF ou imagens, usando Inteligência Artificial.
 
-## 📋 Conteúdo
-
-- [Visão Geral](#visão-geral)
-- [Funcionalidades](#funcionalidades)
-- [Tecnologias Utilizadas](#tecnologias-utilizadas)
-- [Instalação](#instalação)
-- [Como Usar](#como-usar)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Configuração](#configuração)
-- [Limitações](#limitações)
-- [Contribuição](#contribuição)
-- [Licença](#licença)
-
 ## 🔍 Visão Geral
 
 O **Extrator de NFS-e** é uma ferramenta que utiliza Computer Vision e processamento de linguagem natural para automatizar a extração de dados de Notas Fiscais de Serviço Eletrônicas (NFS-e). A aplicação processa arquivos PDF ou imagens de notas fiscais e extrai dados como CNPJ, nome do prestador/tomador, número da nota, valor total e discriminação do serviço.
@@ -63,8 +50,12 @@ Os dados extraídos são apresentados em uma tabela interativa e podem ser expor
    pip install -r requirements.txt
    ```
 
-4. Crie um arquivo `.env` na raiz do projeto com sua chave da API da OpenAI:
-   ```
+4. Copie o arquivo .env.exemplo para .env e adicione sua chave da API da OpenAI:
+   ```bash
+   # Copie o arquivo de exemplo
+   cp .env.exemplo .env
+
+   # Edite o arquivo .env e substitua com sua chave
    OPENAI_API_KEY=sua-chave-api-aqui
    ```
 
