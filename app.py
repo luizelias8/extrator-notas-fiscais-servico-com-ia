@@ -34,7 +34,18 @@ def codificar_imagem(caminho_imagem):
 def extrair_informacoes_nfse(imagem_base64):
     """Envia a imagem para o modelo GPT e extrai as informações da NFS-e."""
     prompt_texto = """
-    Analise essa imagem de uma Nota Fiscal de Serviço Eletrônica (NFS-e) brasileira e extraia as seguintes informações específicas:
+    OBJETIVO: Analisar uma imagem e determinar se é uma Nota Fiscal de Serviço Eletrônica (NFS-e) brasileira válida.
+
+    CRITÉRIOS DE VALIDAÇÃO:
+    - A imagem deve conter elementos claros de uma nota fiscal de serviço
+    - Deve haver informações de CNPJ do prestador
+    - Deve conter número da nota fiscal
+    - Deve ter data de emissão legível
+    - Deve apresentar valor total do serviço
+    - Deve ter uma descrição/discriminação de serviço
+
+    SE A IMAGEM FOR UMA NFS-e VÁLIDA:
+    Extraia as seguintes informações específicas:
 
     1. CNPJ do prestador de serviços
     2. Nome/Razão Social do prestador de serviços
@@ -47,38 +58,43 @@ def extrair_informacoes_nfse(imagem_base64):
     9. Valores de impostos (IR, PIS, COFINS, CSLL, INSS e ISS)
     10. Valor aproximado dos tributos
 
-    IMPORTANTE:
+    REGRAS PARA EXTRAÇÃO:
     - Extraia os números de CNPJ com todos os caracteres, incluindo pontos, barras e hífens (formato: 00.000.000/0000-00)
     - Extraia a data no formato DD/MM/AAAA
     - Extraia o valor total, valores de impostos e valor aproximado dos tributos como números decimais (com ponto como separador decimal)
     - Para a discriminação do serviço, busque seções com títulos como "DISCRIMINAÇÃO DOS SERVIÇOS", "DESCRIÇÃO DO SERVIÇO", "DISCRIMINAÇÃO DO SERVIÇO" ou equivalentes
-    - IMPORTANTE: Se houver um código de serviço antes da descrição (como "01.01.01 - Análise e desenvolvimento de sistemas"), inclua-o na discriminação do serviço exatamente como aparece na nota
+    - Se houver um código de serviço antes da descrição (como "01.01.01 - Análise e desenvolvimento de sistemas"), inclua-o na discriminação do serviço exatamente como aparece na nota
     - Capture a descrição completa do serviço, incluindo o código quando disponível, no formato "CÓDIGO - DESCRIÇÃO" (exemplo: "01.01.01 - Análise e desenvolvimento de sistemas")
     - Busque valores de impostos em seções como "RETENÇÕES FEDERAIS", "IMPOSTOS RETIDOS", "VALORES DE IMPOSTOS" ou similares
     - Para o valor aproximado dos tributos, busque campos como "VALOR APROXIMADO DOS TRIBUTOS", "VALOR APROXIMADO TRIBUTOS", "IBPT" ou similares (exemplo: "R$ 1.880,00 (17,65%) / IBPT")
     - Extraia apenas o valor numérico do "Valor aproximado dos tributos", ignorando percentuais e textos adicionais
-    - Se os valores de impostos (IR, PIS, COFINS, CSLL, INSS, ISS) ou o valor aproximado dos tributos não estiverem presentes ou legíveis na imagem, defina-os como "0.00"
-    - Se algum outro campo não estiver presente ou legível na imagem, defina seu valor como null
-    - Se houver mais de um valor para o mesmo campo, escolha o mais completo e legível
 
-    Retorne apenas um objeto JSON com o seguinte formato:
+    SE NÃO FOR UMA NFS-e VÁLIDA:
+    - Retorne um JSON com TODOS os valores como null
+
+    FORMATO DE RETORNO (OBRIGATÓRIO):
     {
-        "cnpj_prestador": "00.000.000/0000-00",
-        "nome_prestador": "Nome da Empresa Prestadora",
-        "cnpj_tomador": "00.000.000/0000-00",
-        "nome_tomador": "Nome da Empresa Tomadora",
-        "numero_nota": "000000000",
-        "data_emissao": "DD/MM/AAAA",
-        "valor_total": "0.00",
-        "discriminacao_servico": "Código - Descrição do serviço prestado",
-        "ir": "0.00",
-        "pis": "0.00",
-        "cofins": "0.00",
-        "csll": "0.00",
-        "inss": "0.00",
-        "iss": "0.00",
-        "valor_aproximado_tributos": "0.00"
+        "cnpj_prestador": "00.000.000/0000-00" ou null,
+        "nome_prestador": "Nome da Empresa Prestadora" ou null,
+        "cnpj_tomador": "00.000.000/0000-00" ou null,
+        "nome_tomador": "Nome da Empresa Tomadora" ou null,
+        "numero_nota": "000000000" ou null,
+        "data_emissao": "DD/MM/AAAA" ou null,
+        "valor_total": "0.00" ou null,
+        "discriminacao_servico": "Código - Descrição do serviço prestado" ou null,
+        "ir": "0.00" ou null,
+        "pis": "0.00" ou null,
+        "cofins": "0.00" ou null,
+        "csll": "0.00" ou null,
+        "inss": "0.00" ou null,
+        "iss": "0.00" ou null,
+        "valor_aproximado_tributos": "0.00" ou null
     }
+
+    REGRAS ADICIONAIS:
+    - Se valores de impostos não estiverem presentes ou legíveis, defina-os como null
+    - Se houver mais de um valor para o mesmo campo, escolha o mais completo e legível
+    - Se a imagem NÃO for uma nota fiscal válida, TODOS os campos devem ser null
 
     Responda APENAS com o JSON, sem texto adicional.
     """
@@ -204,13 +220,15 @@ def processar_arquivo(arquivo, pasta_temp, pasta_imagens):
 
                 # Extrair informações
                 dados = extrair_informacoes_nfse(imagem_base64)
-                if dados:
+
+                # Filtrar apenas notas fiscais válidas (com pelo menos um campo preenchido)
+                if dados and any(valor is not None for valor in dados.values()):
                     # Adicionar informações sobre o arquivo e página
                     dados['nome_arquivo'] = arquivo.name
-                    dados['pagina'] = i+1
+                    dados['pagina'] = i + 1
                     resultados.append(dados)
                 else:
-                    st.warning(f'Não foi possível extrair informações da página {i+1} do arquivo {arquivo.name}')
+                    st.warning(f'Imagem na página {i + 1} do arquivo {arquivo.name} não parece ser uma nota fiscal válida')
 
             # Limpar status de páginas
             status_paginas.empty()
