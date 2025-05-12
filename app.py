@@ -104,7 +104,7 @@ def extrair_informacoes_nfse(imagem_base64):
         cliente = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
         resposta = cliente.chat.completions.create(
-            model='gpt-4o-mini',
+            model='gpt-4o',
             messages=[{
                 'role': 'user',
                 'content': [
@@ -112,7 +112,9 @@ def extrair_informacoes_nfse(imagem_base64):
                     {'type': 'image_url', 'image_url': {'url': f'data:image/jpeg;base64,{imagem_base64}'}}
                 ]
             }],
-            max_tokens=1000
+            max_tokens=1000,
+            temperature=0.2,
+            seed=42
         )
 
         # Extrair apenas o JSON da resposta
@@ -166,7 +168,7 @@ def converter_pdf_para_imagens(caminho_pdf, pasta_imagens):
             # Carregar a página
             pagina = doc.load_page(num_pagina)
 
-            # Definir matriz de transformação para aumentar a resolução (300 DPI)
+            # Definir matriz de transformação para aumentar a resolução (600 DPI para melhor qualidade)
             matriz = fitz.Matrix(3, 3)
 
             # Renderizar a página para um objeto pixmap (sem canal alpha para reduzir tamanho)
@@ -409,7 +411,7 @@ def main():
 
             - A qualidade da extração depende da qualidade das imagens
             - Diferentes formatos de NFS-e podem ter resultados variados
-            - O processamento utiliza a API da OpenAI (modelo GPT-4o-mini)
+            - O processamento utiliza a API da OpenAI (modelo GPT-4o)
             """)
 
 if __name__ == '__main__':

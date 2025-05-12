@@ -21,7 +21,7 @@ Os dados extraídos são apresentados em uma tabela interativa e podem ser expor
 
 - **Python**: Linguagem base do projeto
 - **Streamlit**: Framework para aplicações web em Python
-- **OpenAI API**: API para acesso ao modelo GPT-4o-mini
+- **OpenAI API**: API para acesso ao modelo GPT-4o
 - **PyMuPDF (fitz)**: Conversão de PDFs para imagens
 - **Pandas**: Manipulação e processamento de dados
 - **dotenv**: Carregamento de variáveis de ambiente
