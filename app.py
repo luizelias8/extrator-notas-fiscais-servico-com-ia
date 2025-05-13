@@ -62,9 +62,19 @@ def extrair_informacoes_nfse(imagem_base64):
     - Extraia os números de CNPJ com todos os caracteres, incluindo pontos, barras e hífens (formato: 00.000.000/0000-00)
     - Extraia a data no formato DD/MM/AAAA
     - Extraia o valor total, valores de impostos e valor aproximado dos tributos como números decimais (com ponto como separador decimal)
-    - Para a discriminação do serviço, busque seções com títulos como "DISCRIMINAÇÃO DOS SERVIÇOS", "DESCRIÇÃO DO SERVIÇO", "DISCRIMINAÇÃO DO SERVIÇO" ou equivalentes
-    - Se houver um código de serviço antes da descrição (como "01.01.01 - Análise e desenvolvimento de sistemas"), inclua-o na discriminação do serviço exatamente como aparece na nota
-    - Capture a descrição completa do serviço, incluindo o código quando disponível, no formato "CÓDIGO - DESCRIÇÃO" (exemplo: "01.01.01 - Análise e desenvolvimento de sistemas")
+
+    REGRAS ESPECÍFICAS PARA DISCRIMINAÇÃO DO SERVIÇO (ORDEM DE PRIORIDADE):
+    1. PRIMEIRA OPÇÃO (PRIORITÁRIA): Procure primeiro pelo código do serviço (geralmente um código numérico como "02919" ou alfanumérico como "SP04002") SEGUIDO pela descrição do serviço na área onde estão os dados financeiros da nota (valor total, base de cálculo, impostos)
+    2. SEGUNDA OPÇÃO: Caso não encontre na área dos valores, procure por campos com título "Código de Serviço", "Código da Atividade" ou similares, geralmente acompanhados por sua descrição
+    3. TERCEIRA OPÇÃO: Busque seções com títulos como "DISCRIMINAÇÃO DOS SERVIÇOS", "DESCRIÇÃO DO SERVIÇO", "DISCRIMINAÇÃO DO SERVIÇO" ou equivalentes
+
+    PARA TODAS AS OPÇÕES:
+    - Capture o código completo e a descrição no formato "CÓDIGO - DESCRIÇÃO"
+    - Se houver um código de serviço antes da descrição (como "02919 - Suporte técnico"), inclua-o na discriminação do serviço exatamente como aparece na nota
+    - Para notas fiscais com códigos do tipo LC116, CNAE ou municipais, capture-os junto com a descrição (ex: "01.01.01 - Análise e desenvolvimento de sistemas")
+    - Certifique-se de NÃO usar textos complementares ou observações como a discriminação do serviço
+
+    PARA VALORES DE IMPOSTOS:
     - Busque valores de impostos em seções como "RETENÇÕES FEDERAIS", "IMPOSTOS RETIDOS", "VALORES DE IMPOSTOS" ou similares
     - Para o valor aproximado dos tributos, busque campos como "VALOR APROXIMADO DOS TRIBUTOS", "VALOR APROXIMADO TRIBUTOS", "IBPT" ou similares (exemplo: "R$ 1.880,00 (17,65%) / IBPT")
     - Extraia apenas o valor numérico do "Valor aproximado dos tributos", ignorando percentuais e textos adicionais
@@ -95,6 +105,11 @@ def extrair_informacoes_nfse(imagem_base64):
     - Se valores de impostos não estiverem presentes ou legíveis, defina-os como null
     - Se houver mais de um valor para o mesmo campo, escolha o mais completo e legível
     - Se a imagem NÃO for uma nota fiscal válida, TODOS os campos devem ser null
+
+    ATENÇÃO ESPECIAL:
+    - Examine TODA a nota fiscal em busca do código e descrição corretos do serviço
+    - Dê PRIORIDADE para códigos e descrições que estejam na mesma seção do valor total ou dos impostos
+    - Busque códigos com prefixos específicos como números (01234), letras seguidas de números (SP04002), ou formatações tipo XX.XX.XX
 
     Responda APENAS com o JSON, sem texto adicional.
     """
